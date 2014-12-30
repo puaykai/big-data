@@ -1,4 +1,6 @@
 
+import java.util.Iterator;
+
 import org.jnetpcap.Pcap;
 import org.jnetpcap.packet.PcapPacket;
 import org.jnetpcap.packet.PcapPacketHandler;
@@ -32,31 +34,53 @@ public class Parser {
 			
 			this.JSON = builder.toString();
 			
-			System.out.println("Length:"+this.JSON.length());
 		}
 	}
 	
 	private String convertToDesiredFormat(String old_JSON) {
 		String new_JSON = "";
 		
-		System.out.println(old_JSON.replace('\n', ' '));
-		
 		JSONObject obj = new JSONObject();
 		
 		JSONParser json_parser = new JSONParser();
 		
 		try {
-			JSONArray array = (JSONArray)json_parser.parse(old_JSON);
+			JSONObject array = (JSONObject)json_parser.parse(old_JSON);
 			
-			obj = (JSONObject) array.get(0);
-			
-			System.out.println(obj.toJSONString());
+			obj = (JSONObject) array.get("packet");
 			
 			int number_of_headers = array.size() -1;
 			
 			for(int i=0; i<number_of_headers; i++) {
-				array.get(i+1);
+				
+				JSONObject header = (JSONObject) array.get("header"+i);
+				
+				JSONObject info = (JSONObject) header.get("info");
+				
+				JSONArray fields = (JSONArray) header.get("fields");
+				
+				String header_name = (String)info.get("name");
+				
+				String nic_name = (String) info.get("nicname");
+				
+				JSONObject header_obj = new JSONObject();
+				
+				header_obj.put("nicname", nic_name);
+				
+				Iterator<Object> iterator = fields.iterator();
+				
+				while(iterator.hasNext()) {
+					JSONObject field = (JSONObject) iterator.next();
+					String field_name = (String) field.get("name");
+					String field_value = (String) field.get("value");
+					if(field_value == null) field_value = (String) field.get("data");
+					header_obj.put(field_name, field_value);
+				}
+				
+				obj.put(header_name, header_obj);
 			}
+			
+			System.out.println(obj.toJSONString());
 			
 		} catch (ParseException e) {
 			e.printStackTrace();
@@ -80,9 +104,7 @@ public class Parser {
 		pcap.loop(1, jpacketHandler, "");
 		
 		String JSON_string = jpacketHandler.getJSON();
-		System.out.println("*************************");
-		System.out.println(JSON_string);
-		System.out.println("*************************");
+
 		convertToDesiredFormat(JSON_string);
 	}
 	
