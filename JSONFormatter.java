@@ -5,6 +5,7 @@ import org.jnetpcap.packet.JHeader;
 import org.jnetpcap.packet.JPacket;
 import org.jnetpcap.packet.format.JFormatter;
 import org.jnetpcap.packet.structure.JField;
+import org.json.simple.JSONObject;
 
 public class JSONFormatter extends JFormatter{
 
@@ -18,7 +19,6 @@ public class JSONFormatter extends JFormatter{
 	private static final String GT = "}";
 	
 	private int number_of_headers;
-	
 	
 	private boolean last_out_is_array = false;
 
@@ -39,6 +39,10 @@ public class JSONFormatter extends JFormatter{
 	@Override
 	protected void fieldAfter(JHeader header, JField field, Detail detail)
 			throws IOException {
+		
+		if(field == null) {
+			System.out.println("***************************************FIELD AFTER NULL ***********************************************");
+		}
 
 		if (field.getStyle() == Style.BYTE_ARRAY_HEX_DUMP) {
 			decLevel();
@@ -103,11 +107,22 @@ public class JSONFormatter extends JFormatter{
 	@Override
 	protected void fieldBefore(JHeader header, JField field, Detail detail)
 			throws IOException {
+		
 		String comma = "";
 		if(this.last_out_is_array) {
 			comma = ",";
 		}else {
 			comma = "";
+		}
+		
+		if(field == null || header == null || detail == null) {
+			System.out.println("********************************NULL FIELD***********************************");
+			System.out.println();
+			pad().format(comma+LT//pad().format(LT//
+					+ "\"name\":\"%s\", \"value\":\"%s\""+ GT, //+ "field name=\"%s\" value=\"%s\" offset=\"%d\" length=\"%d\"/" + GT,//
+					field.getName(),
+					"null");
+			return;
 		}
 
 		incLevel(PAD);
@@ -141,6 +156,7 @@ public class JSONFormatter extends JFormatter{
 				
 				pad().format(LT +"\"name\" :\"hexline\", "+ "\"data\":\"%s\"" + GT+i_comma, i.trim());//pad().format(LT + "hexline data=\"%s\"/" + GT, i.trim());
 			}
+			this.last_out_is_array = true;
 
 			decLevel();
 
@@ -164,8 +180,15 @@ public class JSONFormatter extends JFormatter{
 
 			incLevel(0); // Inc for multi line fields
 		} else {
-			final String v = stylizeSingleLine(header, field, field.getValue(header));
-
+			System.out.println("FIELD************************************************************");
+			System.out.println(field);
+			System.out.println(field.getValue(header));
+			System.out.println(stylizeSingleLine(
+					header, 
+					field, 
+					field.getValue(
+							header)));
+			final String v = JSONObject.escape(stylizeSingleLine(header, field, field.getValue(header)));
 			pad().format(comma+LT//pad().format(LT//
 					+ "\"name\":\"%s\", \"value\":\"%s\", \"offset\":\"%d\", \"length\":\"%d\"" + GT ,//+ "field name=\"%s\" value=\"%s\" offset=\"%d\" length=\"%d\"/" + GT,//
 					field.getName(),
@@ -194,9 +217,19 @@ public class JSONFormatter extends JFormatter{
 	protected void headerAfter(JHeader header, Detail detail) throws IOException {
 
 		if(header.getIndex() == this.number_of_headers-1) {
-			pad().format("]"+GT);//pad().format(LT + "/header" + GT);
+			
+			if(this.last_out_is_array) {
+				pad().format("]"+GT);//pad().format(LT + "/header" + GT);
+			}else{
+				pad().format(GT);//pad().format(LT + "/header" + GT);
+			}
 		} else {
-			pad().format("]"+GT+",");//pad().format(LT + "/header" + GT);
+			if(this.last_out_is_array) {
+				pad().format("]"+GT+",");//pad().format(LT + "/header" + GT);
+			} else{
+				pad().format(GT+",");//pad().format(LT + "/header" + GT);
+			}
+			
 		}
 		
 		pad();
@@ -220,15 +253,29 @@ public class JSONFormatter extends JFormatter{
 	 */
 	@Override
 	protected void headerBefore(JHeader header, Detail detail) throws IOException {
-		//System.out.println(last_field_name);
-		pad().format("\"header"+header.getIndex()+"\":"+LT +"\"info\":"+LT+ "\"name\":\"%s\",", header.getName());//pad().format(LT + "header name=\"%s\"", header.getName());
+		if(this.last_out_is_array) {
+			this.last_out_is_array = false;
+			pad().format("]");
+		}
+		
+		if(header.getIndex() == -1 ) {
+			pad().format(",");
+		}
+		pad().format("\""+header.getName()+"\":"+LT +"\"info\":"+LT+ "\"name\":\"%s\",", header.getName());//pad().format(LT + "header name=\"%s\"", header.getName());
 		incLevel(PAD + PAD);
 
 		pad().format("\"nicname\":\"%s\",", header.getNicname());//pad().format("nicname=\"%s\"", header.getNicname());//
 		pad().format("\"classname\":\"%s\",", header.getClass().getCanonicalName());//pad().format("classname=\"%s\"", header.getClass().getCanonicalName());//
 		pad().format("\"offset\":\"%d\",", header.getOffset());//pad().format("offset=\"%d\"", header.getOffset());//
-		pad().format("\"length\":\"%d\"" + GT + ",\"fields\":[", header.getLength());//pad().format("length=\"%d\"" + GT, header.getLength());//
+		
+		if(header.getFields().length == 0){
+			pad().format("\"length\":\"%d\"" + GT , header.getLength());//pad().format("length=\"%d\"" + GT, header.getLength());//
+		}else {
+			pad().format("\"length\":\"%d\"" + GT + ",\"fields\":[", header.getLength());//pad().format("length=\"%d\"" + GT, header.getLength());//
+		}
+		
 		decLevel();
+		
 	}
 
 	/*
