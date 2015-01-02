@@ -1,4 +1,5 @@
 import java.io.IOException;
+import java.nio.BufferUnderflowException;
 import java.sql.Timestamp;
 
 import org.jnetpcap.packet.JHeader;
@@ -98,6 +99,7 @@ public class JSONFormatter extends JFormatter{
 	 * org.jnetpcap.packet.format.JFormatter.Detail)
 	 */
 	/** 
+	 * jnetpcap.jar mis-classified ARP sha value as <ul>BYTE_ARRAY_IP4_ADDRESS</ul>, when it should be <ul>BYTE_ARRAY_COLON_ADDRESS</ul>
 	 * @param header
 	 * @param field
 	 * @param detail
@@ -107,6 +109,10 @@ public class JSONFormatter extends JFormatter{
 	@Override
 	protected void fieldBefore(JHeader header, JField field, Detail detail)
 			throws IOException {
+		
+		//This line is to correct jnetpcap bug of misclassifying ARP sha value as IP4ADDRESS format
+		//TODO remove after jnetpcap is updated
+
 		
 		String comma = "";
 		if(this.last_out_is_array) {
@@ -127,6 +133,7 @@ public class JSONFormatter extends JFormatter{
 
 		incLevel(PAD);
 
+		
 		if (field.getStyle() == Style.BYTE_ARRAY_HEX_DUMP) {
 			
 			final String[] v =
@@ -180,14 +187,14 @@ public class JSONFormatter extends JFormatter{
 
 			incLevel(0); // Inc for multi line fields
 		} else {
-			System.out.println("FIELD************************************************************");
-			System.out.println(field);
-			System.out.println(field.getValue(header));
-			System.out.println(stylizeSingleLine(
-					header, 
-					field, 
-					field.getValue(
-							header)));
+			//System.out.println("FIELD************************************************************");
+			//System.out.println(field);
+			//System.out.println(field.getValue(header));
+			//System.out.println(stylizeSingleLine(
+			//		header, 
+			//		field, 
+			//		field.getValue(
+			//				header)));
 			final String v = JSONObject.escape(stylizeSingleLine(header, field, field.getValue(header)));
 			pad().format(comma+LT//pad().format(LT//
 					+ "\"name\":\"%s\", \"value\":\"%s\", \"offset\":\"%d\", \"length\":\"%d\"" + GT ,//+ "field name=\"%s\" value=\"%s\" offset=\"%d\" length=\"%d\"/" + GT,//
@@ -198,7 +205,6 @@ public class JSONFormatter extends JFormatter{
 		}
 		
 		this.last_out_is_array = true;
-
 	}
 
 	/*

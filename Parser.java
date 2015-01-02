@@ -1,4 +1,5 @@
 
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.Map.Entry;
@@ -23,6 +24,13 @@ public class Parser {
 	private String JSON;
 	private JSONObject resultant_JSON;
 	
+	private ArrayList<String> list_of_packet_strings = new ArrayList<String>();
+	private ArrayList<JSONObject> list_of_packet_object = new ArrayList<JSONObject>();
+	
+	public ArrayList<String> getListOfPacketStrings() {
+		return this.list_of_packet_strings;
+	}
+	
 	public String getJSON () {
 		return this.JSON;
 	}
@@ -45,69 +53,81 @@ public class Parser {
 		this.hasHTTPHeader = hasHTTPHeader;
 	}
 	
+	public void addPacketString(String JSON) {
+		list_of_packet_strings.add(JSON);
+	}
+	
+	public void addPacketJSON(JSONObject object) {
+		list_of_packet_object.add(object);
+	}
+	
 	public class myPcapPacketHandler implements PcapPacketHandler<String>{
-
+		
 		@Override
 		public void nextPacket(PcapPacket packet, String user) {
 			
-			JSONObject obj = new JSONObject();
-			
-			Http http = new Http();
-			if(packet.hasHeader(http)) {
-				//System.out.println("HAS HTTP ************************");
-				sethasHTTPHeader(true);
-				JField[] http_fields = http.getFields();
-				for(JField field : http_fields) {
-					if(field.hasField(http)) {
-						obj.put(field.getName(), field.getValue(http));
+			try {
+				
+				JSONObject obj = new JSONObject();
+				
+				Http http = new Http();
+				if(packet.hasHeader(http)) {
+					//System.out.println("HAS HTTP ************************");
+					sethasHTTPHeader(true);
+					JField[] http_fields = http.getFields();
+					for(JField field : http_fields) {
+						if(field.hasField(http)) {
+							obj.put(field.getName(), field.getValue(http));
+						}
 					}
 				}
-			}
-			
-			StringBuilder builder  = new StringBuilder();
-			
-			PcapPacket.setFormatter(new JSONFormatter(builder));
-			
-			packet.toString();
-			
-			String temp_json_string = builder.toString();
-			
+				
+				StringBuilder builder  = new StringBuilder();
+				
+				PcapPacket.setFormatter(new JSONFormatter(builder));
+				
+				packet.toString();
+				
+				String temp_json_string = builder.toString();
+				
 
-			
-			setJSON(temp_json_string);
-			
-			JSONParser json_parser = new JSONParser();
-			
-			try {
+				
+				setJSON(temp_json_string);
+				
+				JSONParser json_parser = new JSONParser();
 				
 				JSONObject temp_JSON = (JSONObject) json_parser.parse(temp_json_string);
 				
 				temp_JSON.put("Http", obj);
 				
-				setJSONObj(temp_JSON);
+				//setJSONObj(temp_JSON);
+				
+				addPacketJSON(temp_JSON);
 				
 				if(packet.hasHeader(http)) {
 					//System.out.println(temp_JSON);
 				}
 				
-			} catch (ParseException e) {
-				e.printStackTrace();
-				System.err.println(temp_json_string);
-				System.err.println("Error is here:");
-				System.err.println();
-				System.err.println(temp_json_string.substring(e.getPosition(), temp_json_string.length()));
+			} catch (Exception e) {
+
 			}
 		}
 	}
 	
-	private String convertToDesiredFormat() {
+	private void convertAllToDesiredFormat() {
+		for(JSONObject array : this.list_of_packet_object) {
+			this.addPacketString(convertToDesiredFormat(array));
+		}
+	}
+	
+	private String convertToDesiredFormat(JSONObject array) {
 		String new_JSON = "";
 		
 		JSONObject obj = new JSONObject();
 		
 		try {
 			
-			JSONObject array = getJSONObject();
+			//JSONObject array = getJSONObject();
 			
 			if(array == null) {
 				
@@ -159,6 +179,10 @@ public class Parser {
 		//System.out.println(header);
 		//System.out.println("**********************************");
 		
+		if(fields == null || info == null) {//TODO find out why there is a null
+			return header_obj;
+		}
+		
 		String nic_name = (String) info.get("nicname");
 		
 		header_obj.put("nicname", nic_name);
@@ -198,9 +222,9 @@ public class Parser {
 		
 		myPcapPacketHandler jpacketHandler = new myPcapPacketHandler();
 		
-		pcap.loop(5000, jpacketHandler, "");
+		pcap.loop(0, jpacketHandler, "");
 		
-		convertToDesiredFormat();
+		convertAllToDesiredFormat();
 		
 		JSONObject obj = this.getJSONObject();
 		
@@ -226,6 +250,9 @@ public class Parser {
 		
 		parser.parse(PCAP_file_path);
 		
+		for(String JSON_string : parser.getListOfPacketStrings()) {
+			System.out.println(JSON_string);
+		}
 	}
 
 }
