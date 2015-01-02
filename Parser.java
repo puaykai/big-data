@@ -4,6 +4,8 @@ import java.util.Iterator;
 import java.util.Set;
 import java.util.Map.Entry;
 
+import javax.naming.Context;
+
 import org.jnetpcap.Pcap;
 import org.jnetpcap.packet.PcapPacket;
 import org.jnetpcap.packet.PcapPacketHandler;
@@ -61,10 +63,10 @@ public class Parser {
 		list_of_packet_object.add(object);
 	}
 	
-	public class myPcapPacketHandler implements PcapPacketHandler<String>{
+	public class myPcapPacketHandler implements PcapPacketHandler<Context>{
 		
 		@Override
-		public void nextPacket(PcapPacket packet, String user) {
+		public void nextPacket(PcapPacket packet, Context user) {
 			
 			try {
 				
@@ -102,7 +104,9 @@ public class Parser {
 				
 				//setJSONObj(temp_JSON);
 				
-				addPacketJSON(temp_JSON);
+				//addPacketJSON(temp_JSON);
+				
+				user.write(NullWritable.get(), new Text(convertToDesiredFormat(temp_JSON)));
 				
 				if(packet.hasHeader(http)) {
 					//System.out.println(temp_JSON);
@@ -210,35 +214,36 @@ public class Parser {
 		return header_obj;
 	}
 	
-	public String parse(String PCAP_file_path) {
+	public void parse(String PCAP_file_path, Context user) {
 		
 		StringBuilder err = new StringBuilder();
 		Pcap pcap = Pcap.openOffline(PCAP_file_path, err);
 		
 		if(pcap == null) {
 			System.err.printf("Error while opening device for capture: ");
-			return "";
+			return ;
 		}
 		
 		myPcapPacketHandler jpacketHandler = new myPcapPacketHandler();
 		
-		pcap.loop(0, jpacketHandler, "");
+		pcap.loop(0, jpacketHandler, user);
 		
-		convertAllToDesiredFormat();
+		//convertAllToDesiredFormat();
 		
-		JSONObject obj = this.getJSONObject();
+		//JSONObject obj = this.getJSONObject();
 		
-		obj.put("file_path", PCAP_file_path);
+		//obj.put("file_path", PCAP_file_path);
 		
-		this.setJSON(obj.toJSONString());
+		//this.setJSON(obj.toJSONString());
 		
-		this.setJSONObj(obj);
+		//this.setJSONObj(obj);
 		
 		//if(this.hasHTTPHeader)System.out.println(this.getJSON());
 		//System.out.println("*****************");
 		//System.out.println(JSON_string);
 		//System.out.println("*****************");
-		return this.getJSON();
+		//return this.getJSON();
+		
 	}
 	
 	
@@ -246,6 +251,7 @@ public class Parser {
 	public static void main(String[] args) {
 		String PCAP_file_path = "/home/puaykai/Downloads/orange1.5.cap";
 		//TODO add fiel_path to JSOn
+		/*
 		Parser parser = new Parser();
 		
 		parser.parse(PCAP_file_path);
@@ -253,6 +259,7 @@ public class Parser {
 		for(String JSON_string : parser.getListOfPacketStrings()) {
 			System.out.println(JSON_string);
 		}
+		*/
 	}
 
 }
